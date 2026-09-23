@@ -40,8 +40,34 @@ def historico_movimentacoes(request):
     return render(request, "estoque/historico.html", {"movimentacoes": movs})
 
 def produtos_lista(request):
+    from django.db.models import Q
+
     produtos = Produto.objects.select_related("fornecedor_padrao").prefetch_related("saldos").all()
-    return render(request, "estoque/produtos_lista.html", {"produtos": produtos})
+
+    # Feature 1: Busca por nome do produto (campo textual)
+    q = request.GET.get("q", "").strip()
+    # Feature 1: Filtro por categoria (select)
+    categoria = request.GET.get("categoria", "").strip()
+
+    # Desafio extra: combinar busca + filtro com Q()
+    filtros = Q()
+    if q:
+        filtros &= Q(nome__icontains=q)
+    if categoria:
+        filtros &= Q(categoria=categoria)
+
+    produtos = produtos.filter(filtros)
+
+    # Categorias disponíveis para o <select> do filtro
+    categorias = Produto.CATEGORIAS
+
+    context = {
+        "produtos": produtos,
+        "q": q,
+        "categoria_selecionada": categoria,
+        "categorias": categorias,
+    }
+    return render(request, "estoque/produtos_lista.html", context)
 
 def novo_produto(request):
     if request.method == "POST":

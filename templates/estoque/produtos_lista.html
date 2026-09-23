@@ -11,6 +11,29 @@
     <a href="{% url 'novo_produto' %}" class="btn btn-action">+ Novo Produto</a>
 </div>
 
+<!-- Feature 1: Busca por nome e Filtro por categoria -->
+<div class="card p-3 mt-3">
+    <form method="get" action="{% url 'produtos_lista' %}" class="form-row" style="align-items: flex-end;">
+        <div class="col">
+            <label class="form-label">Buscar por nome do produto:</label>
+            <input type="text" name="q" class="form-control" placeholder="Ex: Mouse, Teclado, Monitor..." value="{{ q }}">
+        </div>
+        <div class="col">
+            <label class="form-label">Filtrar por categoria:</label>
+            <select name="categoria" class="form-select">
+                <option value="">Todas as Categorias</option>
+                {% for valor, rotulo in categorias %}
+                    <option value="{{ valor }}" {% if categoria_selecionada == valor %}selected{% endif %}>{{ rotulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col" style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-action">Buscar</button>
+            <a href="{% url 'produtos_lista' %}" class="btn btn-outline">Limpar</a>
+        </div>
+    </form>
+</div>
+
 <div class="card p-3 mt-3">
     <table class="grid-table">
         <thead>
@@ -34,6 +57,15 @@
                 <td><strong>R$ {{ p.preco_venda|floatformat:2 }}</strong></td>
                 <td>{{ p.ponto_de_pedido }} un</td>
                 <td>{{ p.fornecedor_padrao.razao_social|default:"Diversos" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">
+                    Nenhum produto encontrado
+                    {% if q %}para "<strong>{{ q }}</strong>"{% endif %}
+                    {% if categoria_selecionada %}na categoria selecionada{% endif %}.
+                    <br><a href="{% url 'produtos_lista' %}">Limpar filtros</a>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
