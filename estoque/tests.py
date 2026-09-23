@@ -181,3 +181,107 @@ class PedidoCarrinhoP1Testes(TestCase):
         pedido.refresh_from_db()
         self.assertEqual(pedido.status, "finalizado")
         self.assertIsNotNone(pedido.finalizado_em)
+
+
+class Feature1BuscaFiltroTestes(TestCase):
+    """Feature 1: Busca por nome e filtro por categoria na listagem de produtos."""
+
+    def setUp(self):
+        self.client = Client()
+        Produto.objects.create(codigo_sku="SKU-01", nome="Mouse Sem Fio", categoria="acessorios", preco_custo=30, preco_venda=60, ponto_de_pedido=5)
+        Produto.objects.create(codigo_sku="SKU-02", nome="Teclado Mecânico", categoria="acessorios", preco_custo=80, preco_venda=150, ponto_de_pedido=5)
+        Produto.objects.create(codigo_sku="SKU-03", nome="Monitor 27 polegadas", categoria="eletronicos", preco_custo=600, preco_venda=1200, ponto_de_pedido=3)
+        Produto.objects.create(codigo_sku="SKU-04", nome="Cabo HDMI 2m", categoria="cabos", preco_custo=10, preco_venda=25, ponto_de_pedido=20)
+
+    def test_busca_por_nome_icontains(self):
+        """Buscar 'mouse' deve retornar apenas o Mouse Sem Fio."""
+        res = self.client.get(reverse("produtos_lista"), {"q": "mouse"})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.context["produtos"]), 1)
+        self.assertEqual(res.context["produtos"][0].nome, "Mouse Sem Fio")
+
+    def test_filtro_por_categoria(self):
+        """Filtrar por 'acessorios' deve retornar Mouse e Teclado."""
+        res = self.client.get(reverse("produtos_lista"), {"categoria": "acessorios"})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.context["produtos"]), 2)
+
+    def test_busca_e_filtro_combinados(self):
+        """Buscar 'mouse' + filtrar 'acessorios' retorna 1 resultado."""
+        res = self.client.get(reverse("produtos_lista"), {"q": "mouse", "categoria": "acessorios"})
+        self.assertEqual(len(res.context["produtos"]), 1)
+
+    def test_busca_e_filtro_sem_resultado(self):
+        """Buscar 'mouse' + filtrar 'eletronicos' não retorna nenhum resultado."""
+        res = self.client.get(reverse("produtos_lista"), {"q": "mouse", "categoria": "eletronicos"})
+        self.assertEqual(len(res.context["produtos"]), 0)
+
+    def test_sem_filtro_retorna_todos(self):
+        """Sem nenhum filtro, retorna todos os 4 produtos."""
+        res = self.client.get(reverse("produtos_lista"))
+        self.assertEqual(len(res.context["produtos"]), 4)
+
+
+class Feature2ValidacaoFormularioTestes(TestCase):
+    """Feature 2: Validação customizada — preço do produto deve ser maior que zero."""
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_preco_venda_zero_invalido(self):
+        """Preço de venda = 0 deve ser rejeitado com mensagem de erro."""
+        form_data = {
+            "codigo_sku": "SKU-INVALIDO",
+            "nome": "Produto Teste",
+            "categoria": "acessorios",
+            "preco_custo": "10.00",
+            "preco_venda": "0.00",
+            "ponto_de_pedido": "5",
+            "fornecedor_padrao": "",
+        }
+        from .forms import ProdutoForm
+        form = ProdutoForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("preco_venda", form.errors)
+        self.assertIn("maior que zero", form.errors["preco_venda"][0])
+
+    def test_preco_venda_negativo_invalido(self):
+        """Preço de venda negativo deve ser rejeitado."""
+        from .forms import ProdutoForm
+        form = ProdutoForm(data={
+            "codigo_sku": "SKU-NEG", "nome": "Teste", "categoria": "acessorios",
+            "preco_custo": "10.00", "preco_venda": "-5.00", "ponto_de_pedido": "5",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("preco_venda", form.errors)
+
+    def test_preco_custo_zero_invalido(self):
+        """Preço de custo = 0 deve ser rejeitado."""
+        from .forms import ProdutoForm
+        form = ProdutoForm(data={
+            "codigo_sku": "SKU-C0", "nome": "Teste", "categoria": "acessorios",
+            "preco_custo": "0.00", "preco_venda": "50.00", "ponto_de_pedido": "5",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("preco_custo", form.errors)
+        self.assertIn("maior que zero", form.errors["preco_custo"][0])
+
+    def test_precos_validos_aceitos(self):
+        """Preços positivos devem ser aceitos normalmente."""
+        from .forms import ProdutoForm
+        form = ProdutoForm(data={
+            "codigo_sku": "SKU-OK", "nome": "Produto Válido", "categoria": "acessorios",
+            "preco_custo": "30.00", "preco_venda": "60.00", "ponto_de_pedido": "5",
+        })
+        self.assertTrue(form.is_valid())
+
+    def test_validacao_via_http_post(self):
+        """POST com preço zero deve rejeitar e não criar produto."""
+        res = self.client.post(reverse("novo_produto"), {
+            "codigo_sku": "SKU-HTTP", "nome": "Teste HTTP", "categoria": "acessorios",
+            "preco_custo": "10.00", "preco_venda": "0.00", "ponto_de_pedido": "5",
+        })
+        # Não redireciona (volta para o form com erros)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Produto.objects.filter(codigo_sku="SKU-HTTP").count(), 0)
+

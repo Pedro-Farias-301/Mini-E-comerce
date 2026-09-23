@@ -29,6 +29,24 @@ class ProdutoForm(forms.ModelForm):
             "fornecedor_padrao": forms.Select(attrs={"class": "form-select"}),
         }
 
+    # Feature 2: Validação customizada — o preço de venda deve ser maior que zero
+    def clean_preco_venda(self):
+        preco_venda = self.cleaned_data.get("preco_venda")
+        if preco_venda is not None and preco_venda <= 0:
+            raise forms.ValidationError(
+                "O preço de venda deve ser maior que zero. Informe um valor positivo."
+            )
+        return preco_venda
+
+    # Feature 2: Validação customizada — o preço de custo deve ser maior que zero
+    def clean_preco_custo(self):
+        preco_custo = self.cleaned_data.get("preco_custo")
+        if preco_custo is not None and preco_custo <= 0:
+            raise forms.ValidationError(
+                "O preço de custo deve ser maior que zero. Informe um valor positivo."
+            )
+        return preco_custo
+
 class PedidoForm(forms.ModelForm):
     class Meta:
         model = Pedido
