@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Saldos por Depósito & Alertas de Ponto de Pedido{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div>
+        <h2>Visão Geral do Estoque</h2>
+        <p class="subtitle">Saldos consolidados por depósito/loja e monitoramento de ponto de pedido.</p>
+    </div>
+    <div class="kpi-group">
+        <div class="kpi-card">
+            <span class="kpi-val">{{ total_itens_estoque }}</span>
+            <span class="kpi-label">Peças em Estoque</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-val">{{ depositos.count }}</span>
+            <span class="kpi-label">Unidades / Lojas</span>
+        </div>
+        <div class="kpi-card kpi-alert">
+            <span class="kpi-val">{{ alertas_criticos|length }}</span>
+            <span class="kpi-label">Abaixo do Ponto de Pedido</span>
+        </div>
+    </div>
+</div>
+
+{% if alertas_criticos %}
+<div class="alert-box-warning mt-4">
+    <h4>⚠️ Atenção: Produtos no Ponto de Pedido ou com Estoque Baixo</h4>
+    <p class="small">Os seguintes itens atingiram a quantidade mínima e exigem reposição imediata:</p>
+    <ul class="mt-2">
+        {% for a in alertas_criticos %}
+            <li>
+                <strong>{{ a.produto.nome }}</strong> na unidade <strong>{{ a.deposito.nome }}</strong>:
+                Saldo atual de <span class="badge badge-low">{{ a.quantidade }} un</span> (Ponto de pedido: {{ a.produto.ponto_de_pedido }} un).
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="panel card p-4 mt-4">
+    <div class="panel-header">
+        <h3>Saldo de Estoque por Loja / Depósito</h3>
+        <a href="{% url 'nova_movimentacao' %}" class="btn btn-sm btn-action">+ Registrar Movimentação</a>
+    </div>
+
+    <table class="grid-table mt-3">
+        <thead>
+            <tr>
+                <th>Unidade / Loja</th>
+                <th>Código SKU</th>
+                <th>Produto</th>
+                <th>Categoria</th>
+                <th>Saldo Atual</th>
+                <th>Ponto de Pedido</th>
+                <th>Status do Estoque</th>
+                <th>Última Atualização</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in saldos %}
+            <tr>
+                <td><strong>{{ s.deposito.nome }}</strong><br><small class="text-muted">{{ s.deposito.get_tipo_display }}</small></td>
+                <td><code>{{ s.produto.codigo_sku }}</code></td>
+                <td>{{ s.produto.nome }}</td>
+                <td>{{ s.produto.get_categoria_display }}</td>
+                <td><strong>{{ s.quantidade }} unidades</strong></td>
+                <td>{{ s.produto.ponto_de_pedido }} un</td>
+                <td>
+                    {% if s.alerta_ponto_pedido %}
+                        <span class="badge badge-danger">Repor Estoque</span>
+                    {% else %}
+                        <span class="badge badge-success">Estoque Regular</span>
+                    {% endif %}
+                </td>
+                <td>{{ s.atualizado_em|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-center">Nenhum saldo registrado. Registre a primeira entrada no estoque.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

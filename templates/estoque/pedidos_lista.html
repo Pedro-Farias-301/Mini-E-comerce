@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div>
+        <h2>Pedidos de Venda</h2>
+        <p class="subtitle">Listagem de todos os pedidos realizados na loja.</p>
+    </div>
+    <div class="kpi-group">
+        <div class="kpi-card">
+            <span class="kpi-val">{{ pedidos|length }}</span>
+            <span class="kpi-label">Total de Pedidos</span>
+        </div>
+    </div>
+</div>
+
+<div class="panel card p-4 mt-4">
+    <div class="panel-header">
+        <h3>Lista de Pedidos</h3>
+        <a href="{% url 'novo_pedido' %}" class="btn btn-sm btn-action">+ Novo Pedido</a>
+    </div>
+
+    <table class="grid-table mt-3">
+        <thead>
+            <tr>
+                <th>Pedido</th>
+                <th>Vendedor</th>
+                <th>Cupom</th>
+                <th>Itens</th>
+                <th>Subtotal</th>
+                <th>Desconto</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Data</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pedidos %}
+            <tr>
+                <td><strong>#{{ p.pk }}</strong></td>
+                <td>{{ p.vendedor|default:"—" }}</td>
+                <td>{{ p.cupom|default:"—" }}</td>
+                <td>{{ p.itens.count }} item(ns)</td>
+                <td>R$ {{ p.subtotal|floatformat:2 }}</td>
+                <td>
+                    {% if p.valor_desconto %}
+                        <span class="badge badge-info">- R$ {{ p.valor_desconto|floatformat:2 }}</span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td><strong>R$ {{ p.total|floatformat:2 }}</strong></td>
+                <td>
+                    {% if p.status == "carrinho" %}
+                        <span class="badge badge-warning">Carrinho</span>
+                    {% elif p.status == "finalizado" %}
+                        <span class="badge badge-success">Finalizado</span>
+                    {% else %}
+                        <span class="badge badge-danger">Cancelado</span>
+                    {% endif %}
+                </td>
+                <td>{{ p.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>
+                    {% if p.status == "carrinho" %}
+                        <a href="{% url 'carrinho' p.pk %}" class="btn btn-sm btn-action">Abrir Carrinho</a>
+                    {% else %}
+                        <a href="{% url 'carrinho' p.pk %}" class="btn btn-sm btn-outline">Ver Detalhes</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+                <tr><td colspan="10" class="text-center">Nenhum pedido registrado. Crie o primeiro pedido!</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

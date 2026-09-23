@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gestão de Estoque & Loja{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <div class="brand">
+                <span class="brand-badge">📦</span>
+                <div>
+                    <h1 class="brand-name">VarejoStock — Controle de Estoque & Loja</h1>
+                    <span class="student-info">Aluno: Pedro Barbosa Farias • Matrícula: 202413692</span>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="{% url 'index' %}" class="nav-btn">Saldos por Depósito</a>
+                <a href="{% url 'produtos_lista' %}" class="nav-btn">Produtos</a>
+                <a href="{% url 'historico' %}" class="nav-btn">Movimentações</a>
+                <a href="{% url 'pedidos_lista' %}" class="nav-btn">Pedidos</a>
+                <a href="{% url 'nova_movimentacao' %}" class="btn btn-action">+ Movimentação</a>
+                <a href="{% url 'novo_pedido' %}" class="btn btn-action">+ Novo Pedido</a>
+                <a href="/admin/" target="_blank" class="nav-btn admin-link">Admin</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        {% if messages %}
+            <div class="alert-container">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="header-content footer-text">
+            <p>Laboratório de Programação Full Stack — Avaliação P1</p>
+            <small>Tema: Controle de Estoque de Loja (Opção 10) • Prof. Márcio Garrido</small>
+        </div>
+    </footer>
+</body>
+</html>

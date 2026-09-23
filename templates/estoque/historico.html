@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Movimentações{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <h2>Histórico Geral de Movimentações</h2>
+    <a href="{% url 'nova_movimentacao' %}" class="btn btn-action">+ Nova Movimentação</a>
+</div>
+
+<div class="card p-3 mt-3">
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th>Data / Hora</th>
+                <th>Unidade</th>
+                <th>Tipo</th>
+                <th>Produto</th>
+                <th>Qtd</th>
+                <th>Doc / NF</th>
+                <th>Fornecedor / Motivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimentacoes %}
+            <tr>
+                <td>{{ m.data_movimentacao|date:"d/m/Y H:i" }}</td>
+                <td>{{ m.deposito.nome }}</td>
+                <td>
+                    {% if m.tipo == "entrada" %}
+                        <span class="badge badge-success">Entrada</span>
+                    {% elif m.tipo == "saida_venda" %}
+                        <span class="badge badge-info">Venda Loja</span>
+                    {% else %}
+                        <span class="badge badge-warning">Ajuste</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ m.produto.nome }}</strong></td>
+                <td><strong>{{ m.quantidade }} un</strong></td>
+                <td>{{ m.documento_referencia|default:"-" }}</td>
+                <td>{{ m.fornecedor.razao_social|default:m.motivo|default:"-" }}</td>
+            </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center">Nenhuma movimentação realizada.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

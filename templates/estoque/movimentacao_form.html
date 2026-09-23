@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Movimentação de Estoque{% endblock %}
+
+{% block content %}
+<div class="form-container card p-4">
+    <h2>Lançamento de Movimentação</h2>
+    <p class="subtitle">Registre entradas de fornecedores, saídas por venda na loja ou ajustes de inventário.</p>
+
+    <form method="post" class="mt-4">
+        {% csrf_token %}
+        <div class="form-group mb-3">
+            <label class="form-label">Unidade / Loja Destino ou Origem:</label>
+            {{ form.deposito }}
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Produto:</label>
+            {{ form.produto }}
+        </div>
+        <div class="form-row mb-3">
+            <div class="col">
+                <label class="form-label">Tipo de Movimento:</label>
+                {{ form.tipo }}
+            </div>
+            <div class="col">
+                <label class="form-label">Quantidade de Peças:</label>
+                {{ form.quantidade }}
+            </div>
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Fornecedor (se for Entrada / Compra):</label>
+            {{ form.fornecedor }}
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Nº Documento / Nota Fiscal / Cupom:</label>
+            {{ form.documento_referencia }}
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Motivo / Observações:</label>
+            {{ form.motivo }}
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-action btn-lg">Gravar e Atualizar Saldo</button>
+            <a href="{% url 'index' %}" class="btn btn-outline btn-lg">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

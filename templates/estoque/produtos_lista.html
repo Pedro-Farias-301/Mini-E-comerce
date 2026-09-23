@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Produtos e Ponto de Pedido{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div>
+        <h2>Catálogo de Produtos Cadastrados</h2>
+        <p class="subtitle">Lista geral de itens, precificação e regras de ponto de pedido.</p>
+    </div>
+    <a href="{% url 'novo_produto' %}" class="btn btn-action">+ Novo Produto</a>
+</div>
+
+<div class="card p-3 mt-3">
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Nome do Produto</th>
+                <th>Categoria</th>
+                <th>Preço de Custo</th>
+                <th>Preço de Venda</th>
+                <th>Ponto de Pedido</th>
+                <th>Fornecedor Padrão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in produtos %}
+            <tr>
+                <td><code>{{ p.codigo_sku }}</code></td>
+                <td><strong>{{ p.nome }}</strong></td>
+                <td>{{ p.get_categoria_display }}</td>
+                <td>R$ {{ p.preco_custo|floatformat:2 }}</td>
+                <td><strong>R$ {{ p.preco_venda|floatformat:2 }}</strong></td>
+                <td>{{ p.ponto_de_pedido }} un</td>
+                <td>{{ p.fornecedor_padrao.razao_social|default:"Diversos" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

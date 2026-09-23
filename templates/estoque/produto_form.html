@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastrar Produto{% endblock %}
+
+{% block content %}
+<div class="form-container card p-4">
+    <h2>Cadastrar Novo Produto</h2>
+    <p class="subtitle">Adicione o produto ao inventário com parâmetros de ponto de pedido.</p>
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-action">Salvar Produto</button>
+            <a href="{% url 'produtos_lista' %}" class="btn btn-outline">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
