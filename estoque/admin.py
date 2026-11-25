@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Fornecedor, Deposito, Produto, Movimentacao, SaldoEstoque, Vendedor, Cupom, Pedido, ItemPedido
+from .models import Fornecedor, Deposito, Produto, Movimentacao, SaldoEstoque, Vendedor, Cupom, Pedido, ItemPedido, Loja, SubPedido
 
 @admin.register(Fornecedor)
 class FornecedorAdmin(admin.ModelAdmin):
@@ -13,9 +13,9 @@ class DepositoAdmin(admin.ModelAdmin):
 
 @admin.register(Produto)
 class ProdutoAdmin(admin.ModelAdmin):
-    list_display = ("codigo_sku", "nome", "categoria", "preco_venda", "ponto_de_pedido")
-    list_filter = ("categoria",)
-    search_fields = ("nome", "codigo_sku")
+    list_display = ("codigo_sku", "nome", "loja", "categoria", "preco_venda", "ponto_de_pedido")
+    list_filter = ("categoria", "loja")
+    search_fields = ("nome", "codigo_sku", "loja__nome")
 
 @admin.register(SaldoEstoque)
 class SaldoEstoqueAdmin(admin.ModelAdmin):
@@ -43,8 +43,31 @@ class ItemPedidoInline(admin.TabularInline):
     model = ItemPedido
     extra = 1
 
+class SubPedidoInline(admin.TabularInline):
+    model = SubPedido
+    extra = 0
+    readonly_fields = ("loja", "valor_bruto", "valor_desconto", "taxa_comissao", "valor_comissao", "valor_liquido")
+    can_delete = False
+
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "vendedor", "cupom", "status", "criado_em")
+    list_display = ("__str__", "cliente", "vendedor", "cupom", "status", "criado_em")
     list_filter = ("status",)
-    inlines = [ItemPedidoInline]
+    inlines = [ItemPedidoInline, SubPedidoInline]
+
+
+# ─── P2: Marketplace ─────────────────────────────────────────────────
+
+@admin.register(Loja)
+class LojaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "usuario", "comissao_percentual", "ativa", "criada_em")
+    list_filter = ("ativa",)
+    list_editable = ("comissao_percentual", "ativa")
+    search_fields = ("nome", "usuario__username")
+    prepopulated_fields = {"slug": ("nome",)}
+
+@admin.register(SubPedido)
+class SubPedidoAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "loja", "status", "valor_bruto", "valor_comissao", "valor_liquido", "criado_em")
+    list_filter = ("status", "loja")
+    readonly_fields = ("valor_bruto", "valor_desconto", "taxa_comissao", "valor_comissao", "valor_liquido")

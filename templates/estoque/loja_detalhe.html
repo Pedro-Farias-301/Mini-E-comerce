@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ loja.nome }} — Marketplace{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div class="d-flex gap-2" style="align-items:center;">
+        <div class="loja-avatar">{{ loja.nome|first|upper }}</div>
+        <div>
+            <h2>{{ loja.nome }}</h2>
+            <p class="subtitle">{{ loja.descricao|default:"Loja parceira do VarejoStock Marketplace." }}</p>
+        </div>
+    </div>
+    <div class="kpi-group">
+        <div class="kpi-card">
+            <span class="kpi-val">{{ produtos|length }}</span>
+            <span class="kpi-label">Produtos</span>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 mt-3">
+    <form method="get" class="form-row" style="align-items: flex-end;">
+        <div class="col">
+            <label class="form-label">Buscar nesta loja:</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="Nome do produto">
+        </div>
+        <div class="col" style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-action">Buscar</button>
+            <a href="{% url 'loja_detalhe' loja.slug %}" class="btn btn-outline">Limpar</a>
+            <a href="{% url 'lojas_lista' %}" class="btn btn-outline">← Todas as lojas</a>
+        </div>
+    </form>
+</div>
+
+<div class="card p-3 mt-3">
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Produto</th>
+                <th>Categoria</th>
+                <th>Preço</th>
+                <th>Disponibilidade</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in produtos %}
+            <tr>
+                <td><code>{{ p.codigo_sku }}</code></td>
+                <td><strong>{{ p.nome }}</strong></td>
+                <td>{{ p.get_categoria_display }}</td>
+                <td><strong>R$ {{ p.preco_venda|floatformat:2 }}</strong></td>
+                <td>
+                    {% with total=p.total_em_estoque_geral %}
+                        {% if total > 0 %}<span class="badge badge-success">{{ total }} em estoque</span>
+                        {% else %}<span class="badge badge-warning">Sob encomenda</span>{% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center">Nenhum produto encontrado.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

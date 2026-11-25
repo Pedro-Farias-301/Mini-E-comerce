@@ -1,0 +1,124 @@
+{% comment %}
+P2 — Bloco reutilizável do dashboard (usado no dashboard global e no painel do lojista).
+Espera no contexto: metricas (dict de estoque.dashboard.calcular_metricas), dias, periodos.
+{% endcomment %}
+{% with k=metricas.kpis %}
+<div class="kpi-grid mt-3">
+    <div class="kpi-card kpi-money">
+        <span class="kpi-val">R$ {{ k.faturamento_bruto|floatformat:2 }}</span>
+        <span class="kpi-label">Faturamento Bruto</span>
+        <span class="kpi-hint">Soma dos itens vendidos</span>
+    </div>
+    <div class="kpi-card kpi-money">
+        <span class="kpi-val">R$ {{ k.faturamento_liquido|floatformat:2 }}</span>
+        <span class="kpi-label">Após Descontos</span>
+        <span class="kpi-hint">Cupons: - R$ {{ k.descontos|floatformat:2 }}</span>
+    </div>
+    {% if metricas.escopo == "marketplace" %}
+    <div class="kpi-card">
+        <span class="kpi-val">R$ {{ k.comissao_marketplace|floatformat:2 }}</span>
+        <span class="kpi-label">Receita de Comissões</span>
+        <span class="kpi-hint">Repasse a lojistas: R$ {{ k.repasse_lojistas|floatformat:2 }}</span>
+    </div>
+    {% else %}
+    <div class="kpi-card">
+        <span class="kpi-val">R$ {{ k.repasse_lojistas|floatformat:2 }}</span>
+        <span class="kpi-label">Seu Repasse Líquido</span>
+        <span class="kpi-hint">Comissão paga: R$ {{ k.comissao_marketplace|floatformat:2 }}</span>
+    </div>
+    {% endif %}
+    <div class="kpi-card">
+        <span class="kpi-val">{{ k.pedidos }}</span>
+        <span class="kpi-label">Pedidos</span>
+        <span class="kpi-hint">{{ k.itens_vendidos }} itens vendidos</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-val">R$ {{ k.ticket_medio|floatformat:2 }}</span>
+        <span class="kpi-label">Ticket Médio</span>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-val">{{ k.produtos_ativos }}</span>
+        <span class="kpi-label">Produtos Ativos</span>
+        {% if metricas.escopo == "marketplace" %}<span class="kpi-hint">{{ k.lojas_ativas }} lojas ativas</span>{% endif %}
+    </div>
+    <div class="kpi-card kpi-alert">
+        <span class="kpi-val">{{ k.alertas_estoque }}</span>
+        <span class="kpi-label">Alertas de Estoque</span>
+        <span class="kpi-hint">No ponto de pedido</span>
+    </div>
+</div>
+{% endwith %}
+
+<p class="chart-fallback mt-3" id="chart-fallback">⚠️ Não foi possível carregar a biblioteca de gráficos (Chart.js). Os dados continuam disponíveis nas tabelas abaixo e em <code>/api/dashboard/</code>.</p>
+
+<div class="charts-grid mt-4">
+    <div class="card chart-card">
+        <h3>📈 Faturamento por dia (últimos {{ metricas.periodo_dias }} dias)</h3>
+        <div class="chart-box"><canvas id="grafico-dias"></canvas></div>
+    </div>
+    <div class="card chart-card">
+        <h3>🏷️ Vendas por categoria</h3>
+        <div class="chart-box"><canvas id="grafico-categorias"></canvas></div>
+    </div>
+</div>
+
+<div class="charts-grid-2 mt-4">
+    {% if metricas.escopo == "marketplace" %}
+    <div class="card chart-card">
+        <h3>🏪 Faturamento por loja</h3>
+        <div class="chart-box"><canvas id="grafico-lojas"></canvas></div>
+    </div>
+    {% endif %}
+    <div class="card chart-card">
+        <h3>🚚 Sub-pedidos por status de entrega</h3>
+        <div class="chart-box"><canvas id="grafico-status"></canvas></div>
+    </div>
+    {% if metricas.escopo == "loja" %}
+    <div class="card chart-card">
+        <h3>🏆 Top 5 produtos</h3>
+        <table class="grid-table">
+            <thead><tr><th>Produto</th><th>Qtd.</th><th>Receita</th></tr></thead>
+            <tbody>
+                {% for p in metricas.top_produtos %}
+                <tr><td>{{ p.produto }}<br><small class="text-muted">{{ p.sku }}</small></td><td>{{ p.quantidade }}</td><td>R$ {{ p.valor|floatformat:2 }}</td></tr>
+                {% empty %}<tr><td colspan="3" class="text-center">Sem vendas no período.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{% if metricas.escopo == "marketplace" %}
+<div class="charts-grid-2 mt-4">
+    <div class="card chart-card">
+        <h3>🥇 Ranking de lojas</h3>
+        <table class="grid-table">
+            <thead><tr><th>Loja</th><th>Pedidos</th><th>Bruto</th><th>Comissão</th><th>Repasse</th></tr></thead>
+            <tbody>
+                {% for r in metricas.ranking_lojas %}
+                <tr>
+                    <td><a href="?loja={{ r.slug }}&dias={{ dias }}">{{ r.loja }}</a></td>
+                    <td>{{ r.pedidos }}</td>
+                    <td>R$ {{ r.valor_bruto|floatformat:2 }}</td>
+                    <td>R$ {{ r.comissao|floatformat:2 }}</td>
+                    <td>R$ {{ r.repasse|floatformat:2 }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="5" class="text-center">Sem vendas de lojistas no período.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card chart-card">
+        <h3>🏆 Top 5 produtos</h3>
+        <table class="grid-table">
+            <thead><tr><th>Produto</th><th>Loja</th><th>Qtd.</th><th>Receita</th></tr></thead>
+            <tbody>
+                {% for p in metricas.top_produtos %}
+                <tr><td>{{ p.produto }}</td><td><small>{{ p.loja }}</small></td><td>{{ p.quantidade }}</td><td>R$ {{ p.valor|floatformat:2 }}</td></tr>
+                {% empty %}<tr><td colspan="4" class="text-center">Sem vendas no período.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{{ metricas|json_script:"dados-dashboard" }}

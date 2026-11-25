@@ -16,6 +16,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # P2: API REST
+    "rest_framework",
+    "rest_framework.authtoken",
+    "drf_spectacular",
     "estoque",
 ]
 
@@ -41,6 +45,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "estoque.context_processors.marketplace",
             ],
         },
     },
@@ -63,3 +68,37 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ─── P2: Autenticação (login de lojistas / clientes) ─────────────────
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "pos_login"
+LOGOUT_REDIRECT_URL = "index"
+
+# ─── P2: Django REST Framework ───────────────────────────────────────
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
+    "DEFAULT_FILTER_BACKENDS": [
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "COERCE_DECIMAL_TO_STRING": False,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "VarejoStock Marketplace API",
+    "DESCRIPTION": "API REST do marketplace multi-vendedor (P2 — Laboratório de Programação Full Stack).",
+    "VERSION": "1.0.0",
+    "ENUM_NAME_OVERRIDES": {
+        "PedidoStatusEnum": "estoque.models.Pedido.STATUS_CHOICES",
+        "SubPedidoStatusEnum": "estoque.models.SubPedido.STATUS_CHOICES",
+    },
+}

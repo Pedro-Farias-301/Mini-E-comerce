@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Lojista — {{ loja.nome }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div class="d-flex gap-2" style="align-items:center;">
+        <div class="loja-avatar">{{ loja.nome|first|upper }}</div>
+        <div>
+            <h2>🏪 Painel do Lojista — {{ loja.nome }}</h2>
+            <p class="subtitle">
+                Comissão do marketplace: <strong>{{ loja.comissao_percentual|floatformat:2 }}%</strong> •
+                <a href="{% url 'loja_detalhe' loja.slug %}">ver minha vitrine pública</a>
+                {% if not loja.ativa %}<span class="badge badge-danger">Loja inativa</span>{% endif %}
+            </p>
+        </div>
+    </div>
+    <form method="get" class="periodo-form">
+        {% if lojas_demo %}
+        <select name="loja" class="form-select" title="Trocar loja em exibição">
+            {% for l in lojas_demo %}
+                <option value="{{ l.slug }}" {% if l.pk == loja.pk %}selected{% endif %}>Loja: {{ l.nome }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <select name="dias" class="form-select">
+            {% for p in periodos %}
+                <option value="{{ p }}" {% if p == dias %}selected{% endif %}>Últimos {{ p }} dias</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-action">Aplicar</button>
+        <a href="/api/dashboard/?dias={{ dias }}" class="btn btn-outline" target="_blank">Ver JSON (API)</a>
+    </form>
+</div>
+
+{% include "estoque/_dashboard.html" %}
+
+<!-- Sub-pedidos da loja -->
+<div class="panel card p-4 mt-4">
+    <div class="panel-header">
+        <h3>🚚 Sub-pedidos para despachar</h3>
+        <span class="text-muted small">Últimos 20 • pendente → enviado → entregue</span>
+    </div>
+    <table class="grid-table mt-3">
+        <thead>
+            <tr>
+                <th>Pedido</th>
+                <th>Data</th>
+                <th>Itens da minha loja</th>
+                <th>Bruto</th>
+                <th>Desconto</th>
+                <th>Comissão</th>
+                <th>Repasse</th>
+                <th>Status</th>
+                <th>Atualizar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sp in subpedidos %}
+            <tr>
+                <td><strong>#{{ sp.pedido_id }}</strong></td>
+                <td>{{ sp.pedido.finalizado_em|date:"d/m/Y H:i" }}</td>
+                <td class="small">{% for item in sp.itens %}{{ item.quantidade }}x {{ item.produto.nome }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+                <td>R$ {{ sp.valor_bruto|floatformat:2 }}</td>
+                <td>{% if sp.valor_desconto %}- R$ {{ sp.valor_desconto|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td>R$ {{ sp.valor_comissao|floatformat:2 }}</td>
+                <td><strong>R$ {{ sp.valor_liquido|floatformat:2 }}</strong></td>
+                <td>
+                    {% if sp.status == "pendente" %}<span class="badge badge-warning">{{ sp.get_status_display }}</span>
+                    {% elif sp.status == "enviado" %}<span class="badge badge-info">{{ sp.get_status_display }}</span>
+                    {% elif sp.status == "entregue" %}<span class="badge badge-success">{{ sp.get_status_display }}</span>
+                    {% else %}<span class="badge badge-danger">{{ sp.get_status_display }}</span>{% endif %}
+                </td>
+                <td>
+                    {% if sp.proximos_status %}
+                    <form method="post" action="{% url 'painel_atualizar_status' sp.pk %}" class="inline-form">
+                        {% csrf_token %}
+                        <select name="status" class="form-select">
+                            {% for valor, rotulo in sp.proximos_status %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-action">OK</button>
+                    </form>
+                    {% else %}<span class="text-muted small">Concluído</span>{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="text-center">Nenhuma venda ainda. Assim que um cliente comprar seus produtos, o sub-pedido aparece aqui.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Produtos da loja -->
+<div class="panel card p-4 mt-4">
+    <div class="panel-header">
+        <h3>📦 Meus produtos ({{ produtos|length }})</h3>
+        <a href="{% url 'painel_novo_produto' %}" class="btn btn-sm btn-action">+ Novo Produto</a>
+    </div>
+    <table class="grid-table mt-3">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Produto</th>
+                <th>Categoria</th>
+                <th>Custo</th>
+                <th>Venda</th>
+                <th>Margem</th>
+                <th>Estoque</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in produtos %}
+            <tr>
+                <td><code>{{ p.codigo_sku }}</code></td>
+                <td><strong>{{ p.nome }}</strong></td>
+                <td>{{ p.get_categoria_display }}</td>
+                <td>R$ {{ p.preco_custo|floatformat:2 }}</td>
+                <td><strong>R$ {{ p.preco_venda|floatformat:2 }}</strong></td>
+                <td>{{ p.margem_percentual|floatformat:1 }}%</td>
+                <td>
+                    {% with total=p.total_em_estoque_geral %}
+                        {% if total <= p.ponto_de_pedido %}<span class="badge badge-danger">{{ total }} un</span>
+                        {% else %}<span class="badge badge-success">{{ total }} un</span>{% endif %}
+                    {% endwith %}
+                </td>
+                <td><a href="{% url 'painel_editar_produto' p.pk %}" class="btn btn-sm btn-outline">Editar</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center">Você ainda não tem produtos. <a href="{% url 'painel_novo_produto' %}">Cadastre o primeiro!</a></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}{% include "estoque/_dashboard_js.html" %}{% endblock %}

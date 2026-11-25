@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Lojas do Marketplace{% endblock %}
+
+{% block content %}
+<div class="dashboard-top">
+    <div>
+        <h2>Lojas do Marketplace</h2>
+        <p class="subtitle">Vendedores independentes que vendem seus produtos pela plataforma VarejoStock.</p>
+    </div>
+    <div class="kpi-group">
+        <div class="kpi-card">
+            <span class="kpi-val">{{ lojas|length }}</span>
+            <span class="kpi-label">Lojas Ativas</span>
+        </div>
+        {% if not loja_usuario %}
+            <a href="{% url 'cadastro_lojista' %}" class="btn btn-action" style="align-self:center;">+ Abrir minha loja</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="lojas-grid mt-3">
+    {% for loja in lojas %}
+    <div class="card loja-card">
+        <div class="d-flex gap-2" style="align-items:center;">
+            <div class="loja-avatar">{{ loja.nome|first|upper }}</div>
+            <div>
+                <h3>{{ loja.nome }}</h3>
+                <small class="text-muted">Desde {{ loja.criada_em|date:"m/Y" }}</small>
+            </div>
+        </div>
+        <p class="small text-muted">{{ loja.descricao|default:"Sem descrição."|truncatechars:120 }}</p>
+        <div class="status-pills">
+            <span class="badge badge-info">{{ loja.total_produtos }} produto(s)</span>
+        </div>
+        <a href="{% url 'loja_detalhe' loja.slug %}" class="btn btn-sm btn-action mt-2">Visitar loja →</a>
+    </div>
+    {% empty %}
+    <div class="card p-4 text-center">Nenhuma loja cadastrada ainda. <a href="{% url 'cadastro_lojista' %}">Seja o primeiro vendedor!</a></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,6 +1,29 @@
-from django.db import models
-from django.utils import timezone
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
+from django.utils import timezone
+from django.utils.text import slugify
+
+CENTAVOS = Decimal("0.01")
+NOME_LOJA_OFICIAL = "Loja Oficial VarejoStock"
+
+
+def dinheiro(valor):
+    """Arredonda um valor monetário para 2 casas (meio para cima)."""
+    return Decimal(valor or 0).quantize(CENTAVOS, rounding=ROUND_HALF_UP)
+
+
+def loja_do_usuario(user):
+    """Retorna a Loja (vendedor do marketplace) do usuário, ou None."""
+    if not user or not user.is_authenticated:
+        return None
+    try:
+        return user.loja
+    except Loja.DoesNotExist:
+        return None
 
 class Fornecedor(models.Model):
     razao_social = models.CharField(max_length=150, verbose_name="Razão Social / Fornecedor")
@@ -37,6 +60,54 @@ class Deposito(models.Model):
     def __str__(self):
         return f"{self.nome} ({self.get_tipo_display()})"
 
+# ─── P2: Marketplace Multi-Vendedor ──────────────────────────────────
+
+class Loja(models.Model):
+    """Vendedor (lojista) do marketplace. Cada loja pertence a um usuário e vende seus próprios produtos."""
+
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="loja", verbose_name="Usuário Responsável")
+    nome = models.CharField(max_length=120, unique=True, verbose_name="Nome da Loja")
+    slug = models.SlugField(max_length=140, unique=True, blank=True, verbose_name="Slug (URL)")
+    descricao = models.TextField(blank=True, verbose_name="Descrição")
+    email_contato = models.EmailField(blank=True, verbose_name="E-mail de Contato")
+    comissao_percentual = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("10.00"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        verbose_name="Comissão do Marketplace (%)",
+    )
+    ativa = models.BooleanField(default=True, verbose_name="Ativa")
+    criada_em = models.DateTimeField(auto_now_add=True, verbose_name="Criada em")
+
+    class Meta:
+        verbose_name = "Loja (Vendedor do Marketplace)"
+        verbose_name_plural = "Lojas (Vendedores do Marketplace)"
+        ordering = ["nome"]
+
+    def __str__(self):
+        return self.nome
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._gerar_slug_unico()
+        super().save(*args, **kwargs)
+
+    def _gerar_slug_unico(self):
+        base = slugify(self.nome) or "loja"
+        slug, n = base, 2
+        while Loja.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            slug = f"{base}-{n}"
+            n += 1
+        return slug
+
+
+class ProdutoQuerySet(models.QuerySet):
+    def disponiveis(self):
+        """Produtos da loja oficial ou de lojas ativas (aptos a serem vendidos)."""
+        return self.filter(models.Q(loja__isnull=True) | models.Q(loja__ativa=True))
+
+
 class Produto(models.Model):
     CATEGORIAS = [
         ("eletronicos", "Eletrônicos & Informática"),
@@ -52,6 +123,18 @@ class Produto(models.Model):
     preco_venda = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço de Venda (R$)")
     ponto_de_pedido = models.PositiveIntegerField(default=10, verbose_name="Ponto de Pedido (Estoque Mínimo)")
     fornecedor_padrao = models.ForeignKey(Fornecedor, on_delete=models.SET_NULL, null=True, blank=True, related_name="produtos")
+    # P2: produto pertence a uma loja do marketplace (vazio = loja oficial)
+    loja = models.ForeignKey(
+        Loja,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="produtos",
+        verbose_name="Loja (Vendedor)",
+        help_text="Deixe vazio para produtos da loja oficial VarejoStock.",
+    )
+
+    objects = ProdutoQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Produto"
@@ -60,6 +143,17 @@ class Produto(models.Model):
 
     def __str__(self):
         return f"[{self.codigo_sku}] {self.nome}"
+
+    @property
+    def loja_nome(self):
+        return self.loja.nome if self.loja_id else NOME_LOJA_OFICIAL
+
+    @property
+    def margem_percentual(self):
+        """Margem bruta sobre o preço de venda (%)."""
+        if not self.preco_venda:
+            return Decimal("0")
+        return (self.preco_venda - self.preco_custo) / self.preco_venda * 100
 
     def total_em_estoque_geral(self):
         return sum(s.quantidade for s in self.saldos.all())
@@ -185,6 +279,7 @@ class Pedido(models.Model):
         ("cancelado", "Cancelado"),
     ]
 
+    cliente = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="pedidos", verbose_name="Cliente (Comprador)")
     vendedor = models.ForeignKey(Vendedor, on_delete=models.SET_NULL, null=True, blank=True, related_name="pedidos", verbose_name="Vendedor")
     cupom = models.ForeignKey(Cupom, on_delete=models.SET_NULL, null=True, blank=True, related_name="pedidos", verbose_name="Cupom de Desconto")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="carrinho", verbose_name="Status")
@@ -220,6 +315,106 @@ class Pedido(models.Model):
         """Total do pedido = subtotal - desconto."""
         return self.subtotal - self.valor_desconto
 
+    # ─── P2: regras do carrinho multi-vendedor ───────────────────────
+
+    def _validar_aberto(self):
+        if self.status != "carrinho":
+            raise ValidationError("Este pedido já foi finalizado ou cancelado.")
+
+    def adicionar_item(self, produto, quantidade=1):
+        """Adiciona um produto ao carrinho (somando a quantidade se o produto já estiver nele)."""
+        self._validar_aberto()
+        if quantidade is None or int(quantidade) < 1:
+            raise ValidationError("A quantidade deve ser no mínimo 1.")
+        if produto.loja_id and not produto.loja.ativa:
+            raise ValidationError(f"A loja {produto.loja.nome} está inativa e não pode vender no momento.")
+
+        item = self.itens.filter(produto=produto).first()
+        if item:
+            item.quantidade += int(quantidade)
+            item.save(update_fields=["quantidade"])
+        else:
+            item = ItemPedido.objects.create(
+                pedido=self, produto=produto, quantidade=int(quantidade), preco_unitario=produto.preco_venda
+            )
+        return item
+
+    def aplicar_cupom(self, codigo):
+        self._validar_aberto()
+        codigo = (codigo or "").strip().upper()
+        cupom = Cupom.objects.filter(codigo__iexact=codigo).first()
+        if cupom is None:
+            raise ValidationError(f"Cupom '{codigo}' não encontrado.")
+        if not cupom.esta_valido:
+            raise ValidationError("Este cupom está expirado ou inativo.")
+        self.cupom = cupom
+        self.save(update_fields=["cupom"])
+        return cupom
+
+    def resumo_por_loja(self):
+        """
+        Divide o pedido por vendedor (loja).
+        Regras:
+          - o desconto do cupom é rateado proporcionalmente ao valor de cada loja;
+          - a comissão do marketplace incide sobre o valor da loja após o desconto;
+          - valor líquido (repasse) = valor bruto - desconto - comissão.
+        Itens sem loja pertencem à loja oficial (sem comissão/repasse).
+        """
+        itens = list(self.itens.select_related("produto__loja"))
+        subtotal = sum((i.subtotal for i in itens), Decimal("0"))
+        desconto_total = Decimal(self.valor_desconto)
+
+        grupos = {}
+        for item in itens:
+            loja = item.produto.loja
+            grupo = grupos.setdefault(loja.pk if loja else None, {"loja": loja, "itens": [], "bruto": Decimal("0")})
+            grupo["itens"].append(item)
+            grupo["bruto"] += item.subtotal
+
+        resumo = []
+        for grupo in grupos.values():
+            loja, bruto = grupo["loja"], grupo["bruto"]
+            desconto = dinheiro(desconto_total * bruto / subtotal) if subtotal else Decimal("0.00")
+            base = bruto - desconto
+            taxa = loja.comissao_percentual if loja else Decimal("0")
+            comissao = dinheiro(base * taxa / 100) if loja else Decimal("0.00")
+            resumo.append({
+                "loja": loja,
+                "loja_nome": loja.nome if loja else NOME_LOJA_OFICIAL,
+                "itens": grupo["itens"],
+                "valor_bruto": dinheiro(bruto),
+                "valor_desconto": desconto,
+                "taxa_comissao": taxa,
+                "valor_comissao": comissao,
+                "valor_liquido": dinheiro(base - comissao),
+            })
+        return sorted(resumo, key=lambda r: r["loja_nome"])
+
+    @transaction.atomic
+    def finalizar(self):
+        """Finaliza o pedido e gera um SubPedido para cada loja envolvida."""
+        self._validar_aberto()
+        if not self.itens.exists():
+            raise ValidationError("Não é possível finalizar um pedido sem itens.")
+
+        self.status = "finalizado"
+        self.finalizado_em = timezone.now()
+        self.save(update_fields=["status", "finalizado_em"])
+
+        for r in self.resumo_por_loja():
+            if r["loja"] is None:
+                continue
+            SubPedido.objects.create(
+                pedido=self,
+                loja=r["loja"],
+                valor_bruto=r["valor_bruto"],
+                valor_desconto=r["valor_desconto"],
+                taxa_comissao=r["taxa_comissao"],
+                valor_comissao=r["valor_comissao"],
+                valor_liquido=r["valor_liquido"],
+            )
+        return self.subpedidos.all()
+
 
 class ItemPedido(models.Model):
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="itens", verbose_name="Pedido")
@@ -242,3 +437,66 @@ class ItemPedido(models.Model):
         if not self.preco_unitario:
             self.preco_unitario = self.produto.preco_venda
         super().save(*args, **kwargs)
+
+
+
+class SubPedido(models.Model):
+    """
+    Parte de um pedido que pertence a uma única loja do marketplace.
+    Guarda um "retrato" financeiro (bruto, desconto, comissão e repasse) no momento da finalização
+    e controla o fluxo de entrega daquele vendedor.
+    """
+
+    STATUS_CHOICES = [
+        ("pendente", "Aguardando Envio"),
+        ("enviado", "Enviado"),
+        ("entregue", "Entregue"),
+        ("cancelado", "Cancelado"),
+    ]
+    TRANSICOES = {
+        "pendente": ["enviado", "cancelado"],
+        "enviado": ["entregue"],
+        "entregue": [],
+        "cancelado": [],
+    }
+
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="subpedidos", verbose_name="Pedido")
+    loja = models.ForeignKey(Loja, on_delete=models.PROTECT, related_name="subpedidos", verbose_name="Loja")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pendente", verbose_name="Status de Entrega")
+    valor_bruto = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Valor Bruto (R$)")
+    valor_desconto = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Desconto Rateado (R$)")
+    taxa_comissao = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Taxa de Comissão (%)")
+    valor_comissao = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Comissão do Marketplace (R$)")
+    valor_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Repasse ao Lojista (R$)")
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    atualizado_em = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+
+    class Meta:
+        verbose_name = "Sub-pedido (por Loja)"
+        verbose_name_plural = "Sub-pedidos (por Loja)"
+        ordering = ["-criado_em"]
+        unique_together = ("pedido", "loja")
+
+    def __str__(self):
+        return f"Pedido #{self.pedido_id} / {self.loja.nome}"
+
+    @property
+    def itens(self):
+        return self.pedido.itens.filter(produto__loja=self.loja).select_related("produto")
+
+    @property
+    def proximos_status(self):
+        rotulos = dict(self.STATUS_CHOICES)
+        return [(s, rotulos[s]) for s in self.TRANSICOES.get(self.status, [])]
+
+    def alterar_status(self, novo_status):
+        rotulos = dict(self.STATUS_CHOICES)
+        if novo_status not in rotulos:
+            raise ValidationError(f"Status '{novo_status}' inválido.")
+        if novo_status not in self.TRANSICOES.get(self.status, []):
+            raise ValidationError(
+                f"Transição inválida: {self.get_status_display()} → {rotulos[novo_status]}."
+            )
+        self.status = novo_status
+        self.save(update_fields=["status", "atualizado_em"])
+        return self

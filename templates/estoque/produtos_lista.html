@@ -27,6 +27,16 @@
                 {% endfor %}
             </select>
         </div>
+        <div class="col">
+            <label class="form-label">Filtrar por loja (vendedor):</label>
+            <select name="loja" class="form-select">
+                <option value="">Todas as Lojas</option>
+                <option value="oficial" {% if loja_selecionada == "oficial" %}selected{% endif %}>Loja Oficial VarejoStock</option>
+                {% for l in lojas %}
+                    <option value="{{ l.slug }}" {% if loja_selecionada == l.slug %}selected{% endif %}>{{ l.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="col" style="display: flex; gap: 0.5rem;">
             <button type="submit" class="btn btn-action">Buscar</button>
             <a href="{% url 'produtos_lista' %}" class="btn btn-outline">Limpar</a>
@@ -40,6 +50,7 @@
             <tr>
                 <th>SKU</th>
                 <th>Nome do Produto</th>
+                <th>Loja (Vendedor)</th>
                 <th>Categoria</th>
                 <th>Preço de Custo</th>
                 <th>Preço de Venda</th>
@@ -52,6 +63,10 @@
             <tr>
                 <td><code>{{ p.codigo_sku }}</code></td>
                 <td><strong>{{ p.nome }}</strong></td>
+                <td>
+                    {% if p.loja %}<a href="{% url 'loja_detalhe' p.loja.slug %}">{{ p.loja.nome }}</a>
+                    {% else %}<span class="text-muted">Loja Oficial</span>{% endif %}
+                </td>
                 <td>{{ p.get_categoria_display }}</td>
                 <td>R$ {{ p.preco_custo|floatformat:2 }}</td>
                 <td><strong>R$ {{ p.preco_venda|floatformat:2 }}</strong></td>
@@ -60,7 +75,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center">
                     Nenhum produto encontrado
                     {% if q %}para "<strong>{{ q }}</strong>"{% endif %}
                     {% if categoria_selecionada %}na categoria selecionada{% endif %}.

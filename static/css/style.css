@@ -150,3 +150,61 @@ body {
     color: var(--text-muted);
 }
 .footer-text { text-align: center; }
+
+
+/* ─── P2: Marketplace, Dashboard e Painel do Lojista ─────────────── */
+.text-muted { color: var(--text-muted); }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.small { font-size: 0.85rem; }
+.mb-3 { margin-bottom: 1rem; }
+
+.nav-row { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #334155; }
+.nav-links { flex-wrap: wrap; }
+.nav-group-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+.nav-sep { width: 1px; height: 18px; background: #334155; }
+.user-area { display: flex; align-items: center; gap: 0.75rem; }
+.user-badge { color: #e2e8f0; font-size: 0.9rem; }
+.nav-form { display: inline; }
+.nav-form button { background: none; border: none; cursor: pointer; font-family: inherit; }
+
+.alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.alert-info { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+.errorlist { list-style: none; color: var(--danger); font-size: 0.85rem; margin: 0.25rem 0; }
+.form-container form p { margin-bottom: 0.9rem; }
+.form-container form p label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; }
+.helptext, .form-container .helptext { display: block; color: var(--text-muted); font-size: 0.78rem; margin-top: 0.25rem; }
+.form-container .helptext ul { margin-left: 1rem; }
+
+/* Cards de lojas */
+.lojas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.loja-card { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.loja-card h3 { font-size: 1.1rem; }
+.loja-avatar {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: #ccfbf1; color: var(--primary-dark); font-weight: 700; font-size: 1.2rem;
+}
+.loja-card .btn { align-self: flex-start; margin-top: auto; }
+
+/* Dashboard */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1rem; }
+.kpi-grid .kpi-card { text-align: left; }
+.kpi-hint { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+.kpi-money .kpi-val { color: var(--accent); }
+.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+.charts-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.chart-card { padding: 1.25rem; }
+.chart-card h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+.chart-box { position: relative; height: 280px; }
+.periodo-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.periodo-form .form-select { width: auto; }
+.chart-fallback { display: none; color: var(--text-muted); font-size: 0.85rem; }
+
+.status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.inline-form { display: flex; gap: 0.35rem; align-items: center; }
+.inline-form .form-select { width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+
+@media (max-width: 860px) {
+    .charts-grid, .charts-grid-2, .form-row { grid-template-columns: 1fr; flex-direction: column; }
+}

@@ -49,6 +49,7 @@
         <thead>
             <tr>
                 <th>Produto</th>
+                <th>Vendido por</th>
                 <th>Preço Unitário</th>
                 <th>Quantidade</th>
                 <th>Subtotal</th>
@@ -61,6 +62,7 @@
             {% for item in itens %}
             <tr>
                 <td><strong>{{ item.produto.nome }}</strong><br><small class="text-muted">{{ item.produto.codigo_sku }}</small></td>
+                <td>{{ item.produto.loja_nome }}</td>
                 <td>R$ {{ item.preco_unitario|floatformat:2 }}</td>
                 <td>{{ item.quantidade }}</td>
                 <td><strong>R$ {{ item.subtotal|floatformat:2 }}</strong></td>
@@ -71,11 +73,51 @@
                 {% endif %}
             </tr>
             {% empty %}
-                <tr><td colspan="5" class="text-center">Nenhum item adicionado ao carrinho ainda.</td></tr>
+                <tr><td colspan="6" class="text-center">Nenhum item adicionado ao carrinho ainda.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+{% if resumo_lojas %}
+<!-- P2: Divisão do pedido por vendedor (marketplace multi-vendedor) -->
+<div class="panel card p-4 mt-4">
+    <div class="panel-header">
+        <h3>🏪 Divisão por Vendedor {% if pedido.status == "carrinho" %}<small class="text-muted">(prévia)</small>{% endif %}</h3>
+        <span class="text-muted small">Desconto rateado proporcionalmente • comissão sobre o valor após desconto</span>
+    </div>
+    <table class="grid-table mt-3">
+        <thead>
+            <tr>
+                <th>Loja</th>
+                <th>Itens</th>
+                <th>Bruto</th>
+                <th>Desconto</th>
+                <th>Comissão</th>
+                <th>Repasse ao Lojista</th>
+                {% if subpedidos %}<th>Entrega</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in resumo_lojas %}
+            <tr>
+                <td><strong>{{ r.loja_nome }}</strong></td>
+                <td>{{ r.itens|length }}</td>
+                <td>R$ {{ r.valor_bruto|floatformat:2 }}</td>
+                <td>{% if r.valor_desconto %}- R$ {{ r.valor_desconto|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td>{% if r.loja %}R$ {{ r.valor_comissao|floatformat:2 }} <small class="text-muted">({{ r.taxa_comissao|floatformat:0 }}%)</small>{% else %}—{% endif %}</td>
+                <td>{% if r.loja %}<strong>R$ {{ r.valor_liquido|floatformat:2 }}</strong>{% else %}<span class="text-muted">Receita própria</span>{% endif %}</td>
+                {% if subpedidos %}
+                <td>
+                    {% for sp in subpedidos %}{% if sp.loja_id == r.loja.pk %}<span class="badge badge-info">{{ sp.get_status_display }}</span>{% endif %}{% endfor %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 <!-- Resumo e Cupom -->
 <div class="card p-4 mt-4">

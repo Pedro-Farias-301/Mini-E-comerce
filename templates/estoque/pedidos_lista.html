@@ -26,7 +26,9 @@
         <thead>
             <tr>
                 <th>Pedido</th>
+                <th>Cliente</th>
                 <th>Vendedor</th>
+                <th>Lojas</th>
                 <th>Cupom</th>
                 <th>Itens</th>
                 <th>Subtotal</th>
@@ -41,7 +43,9 @@
             {% for p in pedidos %}
             <tr>
                 <td><strong>#{{ p.pk }}</strong></td>
+                <td>{{ p.cliente.username|default:"—" }}</td>
                 <td>{{ p.vendedor|default:"—" }}</td>
+                <td>{% if p.subpedidos.all %}<span class="badge badge-info">{{ p.subpedidos.all|length }} sub-pedido(s)</span>{% else %}—{% endif %}</td>
                 <td>{{ p.cupom|default:"—" }}</td>
                 <td>{{ p.itens.count }} item(ns)</td>
                 <td>R$ {{ p.subtotal|floatformat:2 }}</td>
@@ -72,7 +76,7 @@
                 </td>
             </tr>
             {% empty %}
-                <tr><td colspan="10" class="text-center">Nenhum pedido registrado. Crie o primeiro pedido!</td></tr>
+                <tr><td colspan="12" class="text-center">Nenhum pedido registrado. Crie o primeiro pedido!</td></tr>
             {% endfor %}
         </tbody>
     </table>

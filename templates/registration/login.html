@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar{% endblock %}
+
+{% block content %}
+<div class="form-container card p-4">
+    <h2>Entrar no Marketplace</h2>
+    <p class="subtitle">Acesso para administradores, lojistas e clientes.</p>
+
+    {% if form.errors %}
+        <div class="alert alert-error mt-3">Usuário ou senha inválidos. Tente novamente.</div>
+    {% endif %}
+
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label" for="id_username">Usuário</label>
+            <input type="text" name="username" id="id_username" class="form-control" autofocus required value="{{ form.username.value|default:'' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="id_password">Senha</label>
+            <input type="password" name="password" id="id_password" class="form-control" required>
+        </div>
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-action btn-lg">Entrar</button>
+            <a href="{% url 'cadastro_lojista' %}" class="btn btn-outline btn-lg">Quero vender no marketplace</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Gestão de Estoque & Loja{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header class="app-header">
@@ -13,17 +14,44 @@
             <div class="brand">
                 <span class="brand-badge">📦</span>
                 <div>
-                    <h1 class="brand-name">VarejoStock — Controle de Estoque & Loja</h1>
+                    <h1 class="brand-name">VarejoStock — Marketplace & Controle de Estoque</h1>
                     <span class="student-info">Aluno: Pedro Barbosa Farias • Matrícula: 202413692</span>
                 </div>
             </div>
+            <div class="user-area">
+                {% if user.is_authenticated %}
+                    <span class="user-badge">
+                        👤 {{ user.username }}
+                        {% if user.is_staff %}<span class="badge badge-info">Admin</span>{% elif loja_usuario %}<span class="badge badge-success">Lojista</span>{% endif %}
+                    </span>
+                    <form method="post" action="{% url 'logout' %}" class="nav-form">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-btn">Sair</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="nav-btn">Entrar</a>
+                    <a href="{% url 'cadastro_lojista' %}" class="btn btn-sm btn-action">Quero Vender</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="header-content nav-row">
             <nav class="nav-links">
-                <a href="{% url 'index' %}" class="nav-btn">Saldos por Depósito</a>
+                <span class="nav-group-label">Estoque</span>
+                <a href="{% url 'index' %}" class="nav-btn">Saldos</a>
                 <a href="{% url 'produtos_lista' %}" class="nav-btn">Produtos</a>
                 <a href="{% url 'historico' %}" class="nav-btn">Movimentações</a>
                 <a href="{% url 'pedidos_lista' %}" class="nav-btn">Pedidos</a>
-                <a href="{% url 'nova_movimentacao' %}" class="btn btn-action">+ Movimentação</a>
-                <a href="{% url 'novo_pedido' %}" class="btn btn-action">+ Novo Pedido</a>
+                <span class="nav-sep"></span>
+                <span class="nav-group-label">Marketplace</span>
+                <a href="{% url 'lojas_lista' %}" class="nav-btn">Lojas</a>
+                <a href="{% url 'dashboard' %}" class="nav-btn">📊 Dashboard</a>
+                <a href="{% url 'painel_lojista' %}" class="nav-btn">🏪 Painel do Lojista</a>
+                <a href="/api/" class="nav-btn">API DRF</a>
+                <a href="/api/docs/" class="nav-btn">Swagger</a>
+            </nav>
+            <nav class="nav-links">
+                <a href="{% url 'nova_movimentacao' %}" class="btn btn-sm btn-action">+ Movimentação</a>
+                <a href="{% url 'novo_pedido' %}" class="btn btn-sm btn-action">+ Novo Pedido</a>
                 <a href="/admin/" target="_blank" class="nav-btn admin-link">Admin</a>
             </nav>
         </div>
@@ -43,9 +71,10 @@
 
     <footer class="app-footer">
         <div class="header-content footer-text">
-            <p>Laboratório de Programação Full Stack — Avaliação P1</p>
-            <small>Tema: Controle de Estoque de Loja (Opção 10) • Prof. Márcio Garrido</small>
+            <p>Laboratório de Programação Full Stack — Avaliações P1 + P2</p>
+            <small>Tema: Controle de Estoque de Loja (Opção 10) + Marketplace Multi-Vendedor • Prof. Márcio Garrido</small>
         </div>
     </footer>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
